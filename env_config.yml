@@ -1,0 +1,9 @@
+project_name: &project_name example_project
+
+snowflake_local:
+  account: companyabc.east-us-2.azure
+  user: kylewong00@gmail.com
+  role: dev_data_scientist
+  warehouse: datasci_wh_xs
+  database: dev_datasci_db
+  schema: *project_name
