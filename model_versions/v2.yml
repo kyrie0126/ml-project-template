@@ -1,0 +1,83 @@
+model_version: &model_version v2
+
+prepare_data:
+  load:
+    - function: src.prepare_data.csv_to_df
+      params:
+        csv_file_path: data/example_data.csv
+  clean:
+    - function: src.prepare_data.drop_columns
+      params:
+        df: $prepare_data.load
+        columns: [ID]
+  split:
+    - function: src.prepare_data.split_train_eval_test
+      params:
+        df: $prepare_data.clean
+        target_col: LABEL
+
+create_model_pipeline:
+  preprocessing:
+    - function: src.create_model_pipeline.onehot_encode
+      params:
+        columns: [CATEGORY_A, CATEGORY_B]
+  model:
+    - function: src.create_model_pipeline.random_forest_classifier
+      params:
+        params: 
+  init_pipeline:
+    - function: src.create_model_pipeline.init_pipeline
+  build_pipeline:
+    - function: src.create_model_pipeline.build_pipeline
+      params:
+        pipe: $create_model_pipeline.init_pipeline
+        preprocessing: $create_model_pipeline.preprocessing
+        model: $create_model_pipeline.model
+  fit_pipeline:
+    - function: src.create_model_pipeline.fit_pipeline
+      params:
+        pipe: $create_model_pipeline.build_pipeline
+        X_train: $prepare_data.split.X_train
+        y_train: $prepare_data.split.y_train
+
+evaluate:
+  predict_train:
+    - function: src.evaluate.predict
+      params:
+        pipe: $create_model_pipeline.fit_pipeline
+        X: $prepare_data.split.X_train
+        y: $prepare_data.split.y_train
+        dataset: train
+        metrics: [accuracy, precision, recall, f1]
+  predict_proba_train:
+    - function: src.evaluate.predict_proba
+      params:
+        pipe: $create_model_pipeline.fit_pipeline
+        X: $prepare_data.split.X_train
+        y: $prepare_data.split.y_train
+        dataset: train
+        metrics: [auc_roc]
+  predict_eval:
+    - function: src.evaluate.predict
+      params:
+        pipe: $create_model_pipeline.fit_pipeline
+        X: $prepare_data.split.X_eval
+        y: $prepare_data.split.y_eval
+        dataset: eval
+        metrics: [accuracy, precision, recall, f1]
+  predict_proba_eval:
+    - function: src.evaluate.predict_proba
+      params:
+        pipe: $create_model_pipeline.fit_pipeline
+        X: $prepare_data.split.X_eval
+        y: $prepare_data.split.y_eval
+        dataset: eval
+        metrics: [auc_roc]
+  print_results:
+    - function: src.evaluate.print_results
+      params:
+        metrics:
+          - $evaluate.predict_train
+          - $evaluate.predict_proba_train
+          - $evaluate.predict_eval
+          - $evaluate.predict_proba_eval
